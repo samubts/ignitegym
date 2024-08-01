@@ -19,10 +19,10 @@ export function Button({ title, variant = 'solid', ...rest}: Props) {
       {...rest}
     >
       <Text color={variant === "outline" ? "green.500" : "white"}
-       fontFamily="heading"
-       fontSize="sm"
+        fontFamily="heading"
+        fontSize="sm"
       >
-       { title }
+        { title }
       </Text>
     </ButtonNativeBase>
   );
