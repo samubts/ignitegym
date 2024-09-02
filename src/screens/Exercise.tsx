@@ -1,9 +1,14 @@
+import { useEffect, useState } from "react"
 import { TouchableOpacity, ScrollView } from "react-native"
-import { VStack, Icon, HStack, Heading, Text, Image, Box } from "@gluestack-ui/themed"
+import { VStack, Icon, HStack, Heading, Text, Image, Box, Toast, ToastTitle, useToast } from "@gluestack-ui/themed"
 import { ArrowLeft } from "lucide-react-native"
-import { useNavigation } from "@react-navigation/native"
+import { useNavigation, useRoute } from "@react-navigation/native"
 
 import { AppNavigatorRoutesProps } from "@routes/app.routes"
+
+import { api } from "@services/api"
+import { AppError } from "@utils/AppError"
+import { ExerciseDTO } from "@dtos/ExerciseDTO"
 
 import BodySvg from "@assets/body.svg"
 import SeriesSvg from "@assets/series.svg"
@@ -11,11 +16,47 @@ import RepetitionSvg from "@assets/repetitions.svg"
 
 import { Button } from "@components/Button"
 
+type RouteParamsProps = {
+  exerciseId: string
+}
+
 export function Exercise() {
+  const [exercise, setExercise] = useState<ExerciseDTO>({} as ExerciseDTO)
   const navigation = useNavigation<AppNavigatorRoutesProps>()
+
+  const toast = useToast()
+
+  const route = useRoute()
+
+  const { exerciseId } = route.params as RouteParamsProps
+
   function handleGoBack() {
     navigation.goBack()
   }
+
+  async function fethExerciseDetails() {
+    try {
+      const response = await api.get(`/exercise/${exerciseId}`)
+      console.log(response)
+      
+    } catch (error) {
+      const isAppError = error instanceof AppError
+      const title = isAppError ? error.message : "Não foi possível carregar detalhes do exercícios."
+
+      toast.show({
+        placement: "top",
+        render: () => (
+          <Toast action="error" bgColor="$red500" mt="$10">
+            <ToastTitle color="white">{title}</ToastTitle>
+          </Toast>
+        ),
+      }) 
+    } 
+  }
+
+  useEffect(() => {
+    fethExerciseDetails()
+  }, [exerciseId])
 
   return (
     <VStack flex={1}>
