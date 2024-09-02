@@ -15,12 +15,15 @@ import SeriesSvg from "@assets/series.svg"
 import RepetitionSvg from "@assets/repetitions.svg"
 
 import { Button } from "@components/Button"
+import { Loading } from "@components/Loading"
 
 type RouteParamsProps = {
   exerciseId: string
 }
 
 export function Exercise() {
+  const [sendingRegister, setSendingRegister] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [exercise, setExercise] = useState<ExerciseDTO>({} as ExerciseDTO)
   const navigation = useNavigation<AppNavigatorRoutesProps>()
 
@@ -36,12 +39,13 @@ export function Exercise() {
 
   async function fethExerciseDetails() {
     try {
-      const response = await api.get(`/exercise/${exerciseId}`)
-      console.log(response)
+      setIsLoading(true)
+      const response = await api.get(`/exercises/${exerciseId}`)
+      setExercise(response.data)
       
     } catch (error) {
       const isAppError = error instanceof AppError
-      const title = isAppError ? error.message : "Não foi possível carregar detalhes do exercícios."
+      const title = isAppError ? error.message : "Não foi possível carregar os detalhes do exercício."
 
       toast.show({
         placement: "top",
@@ -51,7 +55,47 @@ export function Exercise() {
           </Toast>
         ),
       }) 
-    } 
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleExercisesHistoryRegister() {
+    try {
+      setSendingRegister(true)
+
+      await api.post("/history", { exercise_id: exerciseId })
+
+      toast.show({
+        placement: "top",
+        render: () => (
+          <Toast action="error" bgColor="$green700" mt="$10">
+            <ToastTitle 
+              color="white"
+            >
+              Parabéns, Exercício registrado no seu histórico
+            </ToastTitle>
+          </Toast>
+        ),
+      }) 
+
+      navigation.navigate("history")
+      
+    } catch (error) {
+      const isAppError = error instanceof AppError
+      const title = isAppError ? error.message : "Não foi possível carregar os exercícios."
+
+      toast.show({
+        placement: "top",
+        render: () => (
+          <Toast action="error" bgColor="$red500" mt="$10">
+            <ToastTitle color="white">{title}</ToastTitle>
+          </Toast>
+        ),
+      }) 
+    } finally {
+      setSendingRegister(false)
+    }
   }
 
   useEffect(() => {
@@ -66,45 +110,74 @@ export function Exercise() {
         </TouchableOpacity>
 
         <HStack justifyContent="space-between" alignItems="center" mt="$4" mb="$8">
-          <Heading color="$gray100" fontFamily="$heading" fontSize="$lg" flexShrink={1}>Puxada frontal</Heading>
+          <Heading 
+            color="$gray100" 
+            fontFamily="$heading" 
+            fontSize="$lg" 
+            flexShrink={1}
+          >
+            {exercise.name}
+          </Heading>
 
           <HStack alignItems="center">
             <BodySvg />
-            <Text color="$gray200" ml="$1" textTransform="capitalize">Costas</Text>
+            <Text 
+              color="$gray200" 
+              ml="$1" 
+              textTransform="capitalize"
+            >
+              {exercise.group}
+            </Text>
           </HStack>
         </HStack>
       </VStack>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-        <VStack p="$8">
-          <Image source={{
-            uri: "https://static.wixstatic.com/media/2edbed_60c206e178ad4eb3801f4f47fc6523df~mv2.webp/v1/fill/w_350,h_375,al_c,q_80,enc_auto/2edbed_60c206e178ad4eb3801f4f47fc6523df~mv2.webp"
-          }} 
-          alt="Exercícios"
-          mb="$3"
-          resizeMode="cover"
-          rounded="$lg"
-          w="$full"
-          h="$80"
-          />
+      { isLoading ? <Loading /> :
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+          <VStack p="$8">
+            <Box rounded="$lg" mb="$3" overflow="hidden">
+              <Image source={{
+                uri: `${api.defaults.baseURL}/exercise/demo/${exercise.demo}`
+              }} 
+                alt="Exercícios"
+                resizeMode="cover"
+                w="$full"
+                h="$80"
+              />
+            </Box>
 
-          <Box bg="$gray600" rounded="$md" pb="$4" px="$4">
-            <HStack alignItems="center" justifyContent="space-around" mb="$6" mt="$5">
-              <HStack>
-                <SeriesSvg />
-                <Text color="$gray200" ml="$2">3 séries</Text>
+            <Box bg="$gray600" rounded="$md" pb="$4" px="$4">
+              <HStack alignItems="center" justifyContent="space-around" mb="$6" mt="$5">
+                <HStack>
+                  <SeriesSvg />
+                  <Text 
+                    color="$gray200" 
+                    ml="$2"
+                  >
+                    {exercise.series} séries
+                  </Text>
+                </HStack>
+
+                <HStack>
+                  <RepetitionSvg />
+                  <Text 
+                    color="$gray200" 
+                    ml="$2"
+                  >
+                    {exercise.repetitions} repetições
+                  </Text>
+                </HStack>
               </HStack>
 
-              <HStack>
-                <RepetitionSvg />
-                <Text color="$gray200" ml="$2">12 repetições</Text>
-              </HStack>
-            </HStack>
-
-            <Button title="Marcar como realizado" />
-          </Box>
-        </VStack>
-      </ScrollView>
+              <Button 
+                title="Marcar como realizado" 
+                isLoading={sendingRegister} 
+                onPress={handleExercisesHistoryRegister}
+              />
+            </Box>
+          </VStack>
+        </ScrollView>
+      }
     </VStack>
   )
 }
