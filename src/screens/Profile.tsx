@@ -8,7 +8,9 @@ import * as ImagePicker from "expo-image-picker"
 import * as FileSystem from "expo-file-system"
 import * as yup from "yup"
 
-import { api } from "@services/api"
+import { api, userService } from "@services/api"
+
+import defaultUserPhotoImg from "@assets/userPhotoDefault.png"
 
 import { AppError } from "@utils/AppError"
 import { useAuth } from "@hooks/useAuth"
@@ -19,7 +21,7 @@ import { UserPhoto } from "@components/UserPhoto"
 import { Button } from "@components/Button"
 import { Input } from "@components/Input"
 
-type FormDataProps = {
+export type FormDataProps = {
   name: string,
   email?: string,
   password?: string | null | undefined,
@@ -46,7 +48,6 @@ const profileSchema = yup.object().shape({
 })
 export function Profile() {
   const [isUpdating, setIsUpdating] = useState(false)
-  const [userPhoto, setUserPhoto] = useState("https://github.com/samubts.png")
 
   const toast = useToast()
   const { user, updadteUserProfile } = useAuth()
@@ -97,6 +98,8 @@ export function Profile() {
   }
 
   async function handleUserPhotoSelect() {
+    setIsUpdating(true)
+
     try {
       const photoSelected = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -130,11 +133,51 @@ export function Profile() {
           })
         }
 
-        setUserPhoto(photoURI)
+        const fileExtension = photoSelected.assets[0].uri.split(".").pop()
+        
+        const photoFile = {
+          name: `${user.name}.${fileExtension}`.toLowerCase(),
+          uri: photoSelected.assets[0].uri,
+          type: `${photoSelected.assets[0].type}/${fileExtension}`
+        } as any
+        
+        const userPhotoUploadForm = new FormData()
+
+        userPhotoUploadForm.append("avatar", photoFile)
+
+        const avatarUpdatedResponse =
+        await userService.updateImageProfile(userPhotoUploadForm)
+
+        const userUpdated = user
+        userUpdated.avatar = avatarUpdatedResponse.data.avatar
+        await updadteUserProfile(userUpdated)
+
+        console.log(userUpdated)
+
+        toast.show({
+          placement: "top",
+          render: () => (
+            <Toast action="error" bgColor="$green500" mt="$7">
+              <ToastTitle color="white">Foto atualizada com sucesso!</ToastTitle>
+            </Toast>
+          ),
+        })
       }
-   } catch (error){
-    console.log(error)
-   }
+    } catch (error){
+      const isAppError = error instanceof AppError
+      const title = isAppError ? error.message : "Não foi possível carregar a foto. Tente novamente mais tarde."
+
+      toast.show({
+        placement: "top",
+        render: () => (
+          <Toast action="error" bgColor="$red500" mt="$10">
+            <ToastTitle color="white">{title}</ToastTitle>
+          </Toast>
+        ),
+      })
+    } finally {
+      setIsUpdating(false)
+    }
   }
 
   return (
@@ -143,7 +186,14 @@ export function Profile() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 36 }}>
         <Center mt="$6" px="$10">
-          <UserPhoto source={{ uri: userPhoto }} alt="Foto do usuário" size="xl"/>
+          <UserPhoto 
+            source={ 
+            user.avatar 
+            ? {uri: `${api.defaults.baseURL}/avatar/${user.avatar}` } 
+            : defaultUserPhotoImg
+          } 
+            alt="Foto do usuário" size="xl"
+          />
 
           <TouchableOpacity onPress={handleUserPhotoSelect}>
             <Text color="$green500" fontFamily="$heading" fontSize="$md" mt="$2" mb="$8">
